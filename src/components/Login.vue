@@ -1,37 +1,32 @@
 <template>
-    <div class="mdl-card mdl-shadow--6dp" id="login-pane" v-mdl>
-        <div class="mdl-card__title mdl-color--primary mdl-color-text--white">
-            <h2 class="mdl-card__title-text">Pulse SMS</h2>
-        </div>
-        <div class="mdl-card__supporting-text">
-            <p>First, <a href="https://messenger.klinkerapps.com/overview/signup.html" target="_blank">sign up</a> for an account from the <b>Text from any device</b> option in the navigation drawer of the phone app.</p>
-            <p v-if="error" class="error">Email or Password incorrect</p>
-            <form>
-                <div class="mdl-textfield mdl-js-textfield">
-                    <input class="mdl-textfield__input" type="email" id="username" v-model="username" autofocus/>
-                    <label class="mdl-textfield__label" for="username">Email Address</label>
-                </div>
-                <div class="mdl-textfield mdl-js-textfield">
-                    <input class="mdl-textfield__input" type="password" id="password" v-model="password" @keyup.enter="doLogin"/>
-                    <label class="mdl-textfield__label" for="password">Password</label>
-                </div>
-            </form>
+  <dialog class="mdl-dialog">
+      <div class="mdl-dialog__content" v-mdl>
+          <h4>Login to Pulse</h4>
 
-            <a href="https://messenger.klinkerapps.com/forgot_password.html" target="_blank">Forgot your password?</a>
-            <br>
-            <a href="https://messenger.klinkerapps.com/overview/platform-ios.html" target="_blank">Have an <i>iPhone</i>?</a>
-        </div>
-        <div class="mdl-card__actions mdl-card--border">
-            <button class="mdl-button mdl-button--colored mdl-js-button mdl-js-ripple-effect" id="login" @click="doLogin">Log in</button>
-        </div>
+          <form>
+              <div class="mdl-textfield mdl-js-textfield">
+                  <input class="mdl-textfield__input" type="email" id="username" v-model="username" autofocus/>
+                  <label class="mdl-textfield__label" for="username">Email Address</label>
+              </div>
+              <div class="mdl-textfield mdl-js-textfield">
+                  <input class="mdl-textfield__input" type="password" id="password" v-model="password" @keyup.enter="doLogin"/>
+                  <label class="mdl-textfield__label" for="password">Password</label>
+              </div>
+          </form>
 
+          <p v-if="error" class="error">Email or Password incorrect</p>
 
-        <transition name="loading-fade">
-            <div class="loading-center" v-if="loading">
-                <spinner></spinner>
-            </div>
-        </transition>
-    </div>
+          <p>Don't have a login? <a href="https://messenger.klinkerapps.com/overview/signup.html" target="_blank">Sign up</a> for an account from the phone app, first.</p>
+
+          <a href="https://messenger.klinkerapps.com/forgot_password.html" target="_blank">Forgot your password?</a>
+          <br>
+          <a href="https://messenger.klinkerapps.com/overview/platform-ios.html" target="_blank">Have an <i>iPhone</i>?</a>
+
+      </div>
+      <div class="mdl-dialog__actions">
+          <button class="mdl-button mdl-button--colored mdl-js-button mdl-js-ripple-effect" id="login" @click="doLogin">Log in</button>
+      </div>
+  </dialog>
 </template>
 
 <script>
@@ -41,6 +36,7 @@ import '@/lib/hmacsha1.js'
 import Vue from 'vue'
 import { Crypto, Url, Api } from '@/utils/'
 import Spinner from '@/components/Spinner.vue'
+import dialogPolyfill from 'dialog-polyfill'
 
 
 export default {
@@ -52,6 +48,14 @@ export default {
 
         this.$store.commit("loading", false);
         this.$store.commit('title', this.title);
+
+        let login = document.querySelector(".mdl-dialog");
+        if (!login.showModal) {
+            dialogPolyfill.registerDialog(this.login);
+        }
+
+        login.showModal();
+
     },
 
     data () {
@@ -157,6 +161,12 @@ export default {
     .loading-fade-enter, .loading-fade-leave-to {
         transform: translateY(70%);
         opacity: 0;
+    }
+
+    dialog {
+        position: fixed;
+        top: 50%;
+        transform: translate(0, -50%);
     }
 
 </style>

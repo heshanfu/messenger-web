@@ -10,7 +10,7 @@
                 <span class="mdl-layout-title" id="toolbar-title">{{ $store.state.title }}</span>
                 <div id="toolbar_icons" >
                     <transition-group name="list">
-                    <button id="search-button" class="menu_icon refresh mdl-button mdl-button--icon mdl-js-button mdl-js-ripple-effect" tag="button" v-if="$route.name == 'conversations-list'" key="search" @click="openUrl('https://messenger.klinkerapps.com/search.html');">
+                    <button id="search-button" class="menu_icon refresh mdl-button mdl-button--icon mdl-js-button mdl-js-ripple-effect" tag="button" v-if="$route.name == 'conversations-list'" key="search" @click="dispatchMenuButton('search')">
                        <i class="material-icons">search</i>
                     </button>
                     <button id="add-button" class="menu_icon add mdl-button mdl-button--icon mdl-js-button mdl-js-ripple-effect" tag="button" v-if="$route.path.indexOf('thread') != -1" key="add" @click="$router.push('/compose');">
@@ -66,7 +66,7 @@ import Vue from 'vue'
 import '@/lib/sjcl.js'
 import '@/lib/hmacsha1.js'
 
-import { Util, Crypto, Api, MediaLoader, SessionCache, ShortcutKeys} from '@/utils'
+import { Util, Crypto, Api, MediaLoader, SessionCache, ShortcutKeys, Platform } from '@/utils'
 
 import Sidebar from '@/components/Sidebar.vue'
 import Conversations from '@/components/Conversations/'
@@ -86,6 +86,25 @@ export default {
         else
             this.$router.push('login');
 
+        navigator.serviceWorker && navigator.serviceWorker.register('/service-worker.js').then((registration) => {
+            console.log('Registered SW with scope: ', registration.scope);
+        });
+
+        let accountId = this.$store.state.account_id;
+        let hash = this.$store.state.hash;
+        let salt = this.$store.state.salt;
+
+        addEventListener('message', function(e) {
+            if (e.origin.startsWith("chrome-extension://")) {
+                if (e.data == "requesting account id") {
+                    e.source.postMessage("account id: " + accountId, e.origin);
+                } else if (e.data == "requesting hash") {
+                    e.source.postMessage("hash: " + hash, e.origin);
+                } else if (e.data == "requesting salt") {
+                    e.source.postMessage("salt: " + salt, e.origin);
+                }
+            }
+        });
     },
 
     mounted () { // Add window event listener
@@ -244,6 +263,7 @@ export default {
 
             // Set margin
             this.margin = margin
+            this.$store.state.msgbus.$emit('newMargin', margin);
         },
 
         /**
@@ -421,6 +441,9 @@ export default {
             if (theme == "day_night")
                 return this.is_night ? "dark" : "";
 
+            if (theme == "black")
+                return 'dark black';
+
             return theme; // Otherwise return stored theme
         },
 
@@ -462,6 +485,13 @@ export default {
                 const toolbar = this.$el.querySelector("#toolbar");
                 Util.materialColorChange(toolbar, to);
             })
+        },
+        '$store.state.title' (to) {
+            if (to.length > 0) {
+                document.title = to;
+            } else {
+                document.title = "Pulse SMS";
+            }
         }
 
     },
@@ -759,6 +789,16 @@ export default {
 
         .link-sent {
             color: white;
+        }
+    }
+
+    body.black {
+        background-color: $bg-black;
+
+        #toolbar {
+            border-bottom: solid 1px #000000;
+            background-color: $bg-black;
+            border-color: #000000;
         }
     }
 

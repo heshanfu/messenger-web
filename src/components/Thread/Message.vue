@@ -44,11 +44,8 @@ export default {
     props: [ 'messageData', 'threadColor', 'textColor' ],
 
     mounted () {
-        if ( this.messageData.marker )
+        if (this.messageData.marker)
             return;
-
-        this.$store.state.msgbus.$on('updateMessageType',
-            (payload) => this.updateType(payload.id, payload.message_type));
 
         const MediaLoader = this.$store.state.media_loader; // get loader
         this.style_class.push('message');
@@ -125,7 +122,7 @@ export default {
 
         let linkClass = 'link-sent'
         if (!this.is_article) {
-            switch ( this.type ) {
+            switch (this.type) {
                 case 0:
                 case 6: {
                     linkClass = 'link-received'
@@ -148,8 +145,17 @@ export default {
             }
         }
 
+        if (this.sending) {
+            this.$store.state.msgbus.$on('updateMessageType-' + this.id,
+                (payload) => this.updateType(payload.message_type));
+        }
+
         // Add links
         this.content = linkify(this.content, { className: linkClass })
+    },
+
+    beforeDestroy () {
+        this.$store.state.msgbus.$off('updateMessageType-' + this.id);
     },
 
     data () {
@@ -198,10 +204,7 @@ export default {
             this.media_thumb = data_prefix + blob;
             this.media_link = data_prefix + blob;
         },
-        updateType (id, type) {
-            if (this.id != id)
-                return;
-
+        updateType (type) {
             this.type = type;
         },
         openImage (e) {
@@ -233,9 +236,9 @@ export default {
                 media = "padding-bottom:10px;"
 
             return "background: " + this.color + ";"
-                + "border-color: " + this.color
-                + " transparent;" + media
-                + "color:" + this.textColor + ";";
+                  + "border-color: " + this.color
+                  + " transparent;" + media
+                  + "color:" + this.textColor + ";";
         },
         dateType () {
             if (this.type == 0 || this.type == 6)

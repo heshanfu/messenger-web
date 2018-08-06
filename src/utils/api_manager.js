@@ -6,7 +6,7 @@ import * as firebase from 'firebase';
 import ImageCompressor from '@xkeshi/image-compressor';
 import ReconnectingWebsocket from 'reconnecting-websocket';
 
-import { Util, Url, Crypto, SessionCache } from '@/utils/'
+import { Util, Url, Crypto, SessionCache, Platform } from '@/utils/'
 
 export default class Api {
 
@@ -115,7 +115,7 @@ export default class Api {
         } else if (operation == "read_conversation") {
             const id = json.message.content.id;
 
-            SessionCache.readConversation('index_unarchived');
+            SessionCache.readConversation('index_public_unarchived');
             SessionCache.readConversation('index_archived');
 
             store.state.msgbus.$emit('conversationRead', id);
@@ -124,26 +124,26 @@ export default class Api {
             const message_type = json.message.content.message_type;
 
             SessionCache.updateMessageType(id, message_type);
-            store.state.msgbus.$emit('updateMessageType', { id, message_type });
+            store.state.msgbus.$emit('updateMessageType-' + id, { message_type });
         } else if (operation == "added_conversation") {
             const id = json.message.content.id;
 
-            SessionCache.invalidateConversations('index_unarchived');
+            SessionCache.invalidateConversations('index_public_unarchived');
             store.state.msgbus.$emit('addedConversation', { id });
         } else if (operation == "removed_conversation") {
             const id = json.message.content.id;
 
-            SessionCache.removeConversation(id, 'index_unarchived');
+            SessionCache.removeConversation(id, 'index_public_unarchived');
             store.state.msgbus.$emit('removedConversation', { id });
         } else if (operation == "archive_conversation") {
             const id = json.message.content.id;
 
             if (json.message.content.archive) {
-                SessionCache.removeConversation(id, 'index_unarchived');
+                SessionCache.removeConversation(id, 'index_public_unarchived');
                 SessionCache.invalidateConversations('index_archived');
             } else {
                 SessionCache.removeConversation(id, 'index_archived');
-                SessionCache.invalidateConversations('index_unarchived');
+                SessionCache.invalidateConversations('index_public_unarchived');
             }
 
             store.state.msgbus.$emit('removedConversation', { id });
@@ -160,6 +160,10 @@ export default class Api {
 
         if (message.type != 0)
             return;
+
+        if (!Platform.isWebsite()) {
+            return;
+        }
 
         // fetch through the API instead of the session cache, since the session
         // cache doesn't know about the mute/private settings
@@ -204,7 +208,7 @@ export default class Api {
 
     static fetchConversations (index, folderId) {
         if (typeof index == 'undefined') {
-            index = "index_unarchived"
+            index = "index_public_unarchived"
         }
 
         if (index == 'folder') {
@@ -301,7 +305,8 @@ export default class Api {
             to: to,
             message: "firebase -1",
             mime_type: mimeType,
-            message_id: messageId
+            message_id: messageId,
+            sent_device: Platform.getPlatformIdentifier()
         }
 
         const promise = new Promise((resolve, reject) => {
@@ -319,7 +324,8 @@ export default class Api {
         const request = {
             account_id: store.state.account_id,
             to: to,
-            message: message
+            message: message,
+            sent_device: Platform.getPlatformIdentifier()
         }
 
         const promise = new Promise((resolve, reject) => {
@@ -358,7 +364,8 @@ export default class Api {
             timestamp: timestamp,
             mime_type: Crypto.encrypt(mime_type),
             read: true,
-            seen: true
+            seen: true,
+            sent_device: Platform.getPlatformIdentifier()
         };
 
         let conversationRequest = {
@@ -770,33 +777,50 @@ export default class Api {
     static fetchContacts () {
         let constructed_url = Url.get("contacts") + Url.getAccountParam();
         const promise = new Promise((resolve, reject) => {
-            Vue.http.get( constructed_url )
-                .then( response => {
-                    response = response.data
+            let contacts = [];
+
+            if (!SessionCache.hasContacts()) {
+                queryContacts(50, 3000);
+            } else {
+                resolve(SessionCache.getContacts());
+            }
+
+            function queryContacts(pageLimit, totalLimit) {
+                Vue.http.get(constructed_url + "&limit=" + pageLimit + "&offset=" + contacts.length).then(response => {
+                    response = response.data;
 
                     // Decrypt contact items
                     for(let i = 0; i < response.length; i++) {
                         const contact = Crypto.decryptContact(response[i]);
                         if (contact != null)
-                            response[i] = contact;
+                            contacts.push(contact);
                     }
 
-                    response.sort(function(a, b) {
-                        var nameA = a.name.toUpperCase();
-                        var nameB = b.name.toUpperCase();
+                    if (response.length == pageLimit && contacts.length < totalLimit) {
+                        queryContacts(pageLimit, totalLimit);
+                    } else {
+                        finishQuery(contacts);
+                    }
+                }).catch(response => Api.rejectHandler(response, reject));
+            }
 
-                        if (nameA < nameB) {
-                            return -1;
-                        } else if (nameA > nameB) {
-                            return 1;
-                        } else {
-                            return 0;
-                        }
-                    });
+            function finishQuery(contacts) {
+                contacts.sort(function(a, b) {
+                    let nameA = a.name.toUpperCase();
+                    let nameB = b.name.toUpperCase();
 
-                    resolve(response);
-                })
-                .catch( response => Api.rejectHandler(response, reject) );
+                    if (nameA < nameB) {
+                        return -1;
+                    } else if (nameA > nameB) {
+                        return 1;
+                    } else {
+                        return 0;
+                    }
+                });
+
+                SessionCache.putContacts(contacts);
+                resolve(contacts);
+            }
         });
 
         return promise

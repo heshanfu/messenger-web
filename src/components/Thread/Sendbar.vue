@@ -10,8 +10,8 @@
             <img :src="media_blob" />
         </div>
         <div class="send-bar-inner" id="sendbar">
-            <input id="attach" class="mdl-button mdl-js-button mdl-button--icon attach-button" @click.prevent="attachMedia"/>
-            <input id="emoji" class="mdl-button mdl-js-button mdl-button--icon emoji-button" @click="toggleEmoji"/>
+            <input id="attach" class="mdl-button mdl-js-button mdl-button--icon attach-button" readonly tabindex="-1" @click.prevent="attachMedia"/>
+            <input id="emoji" class="mdl-button mdl-js-button mdl-button--icon emoji-button" readonly tabindex="-1" @click="toggleEmoji"/>
             <div id="emoji-wrapper" v-show="show_emoji" @click.self="toggleEmoji">
                     <Picker set="emojione" :style="emojiStyle"  :set="set" :per-line="perLine" :skins="skin" :onItemClick="insertEmoji" />
             </div>
@@ -52,6 +52,35 @@ export default {
         }
 
         this.$store.state.msgbus.$on('hotkey-emoji', this.toggleEmoji);
+
+        document.documentElement.addEventListener('paste', function(event) {
+            var clipboardData, found;
+            found = false;
+            clipboardData = event.clipboardData;
+
+            return Array.prototype.forEach.call(clipboardData.types, function(type, i) {
+                var file, reader;
+                if (found) {
+                    return;
+                }
+
+                if (type.match(/image.*/) || clipboardData.items[i].type.match(/image.*/)) {
+                    file = clipboardData.items[i].getAsFile();
+                    reader = new FileReader();
+
+                    reader.onload = function(evt) {
+                        return Api.loadFile(file);
+                    };
+
+                    reader.readAsDataURL(file);
+                    return found = true;
+                }
+            });
+        });
+    },
+
+    destroy () {
+        document.documentElement.removeEventListener('paste');
     },
 
     data () {
@@ -189,8 +218,8 @@ export default {
                 margin = (width - MAIN_CONTENT_SIZE) / 2;
             }
 
-            // Set margin + sidebar
-            this.emojiStyle.left = (270  + margin) + "px";
+            let sidebar = this.$store.state.full_theme ? 270 : 0;
+            this.emojiStyle.left = (sidebar + margin) + "px";
         },
         /**
          * Inserts Emoji to curser location
@@ -219,7 +248,11 @@ export default {
 
     computed: {
         send_color () {
-            return this.$store.state.colors_accent
+            if (this.$store.state.theme_use_global) {
+                return this.$store.state.theme_global_accent;
+            } else {
+                return this.$store.state.colors_accent;
+            }
         },
         is_dirty () { // Is dirty fix for mdl
             if (this.message.length > 0)
@@ -331,42 +364,42 @@ export default {
 
         @media (min-width: 750px) {
             & {
-                width: 500px;
+                width: 450px;
             }
         }
         @media (min-width: 800px) {
             & {
-                width: 540px;
+                width: 490px;
             }
         }
         @media (min-width: 820px) {
             & {
-                width: 555px;
+                width: 505px;
             }
         }
         @media (min-width: 850px) {
             & {
-                width: 580px;
+                width: 530px;
             }
         }
         @media (min-width: 870px) {
             & {
-                width: 600px;
+                width: 550px;
             }
         }
         @media (min-width: 890px) {
             & {
-                width: 620px;
+                width: 570px;
             }
         }
         @media (min-width: 920px) {
             & {
-                width: 650px;
+                width: 600px;
             }
         }
         @media (min-width:950px) {
             & {
-                width: 680px;
+                width: 630px;
             }
         }
     }
@@ -467,6 +500,20 @@ export default {
 
         .mdl-textfield__label {
             color: #fff !important;
+        }
+    }
+
+    body.black {
+        .preview {
+            background: rgb(0,0,0);
+
+            .overlay {
+                background: linear-gradient(to bottom, rgba(0,0,0,0) 95%,rgba(0,0,0,1) 100%);
+            }
+        }
+
+        .send-bar-inner {
+            background: #000000;
         }
     }
 

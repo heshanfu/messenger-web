@@ -2,6 +2,7 @@ var path = require('path')
 var utils = require('./utils')
 var config = require('../config')
 var vueLoaderConfig = require('./vue-loader.conf')
+var SWPrecacheWebpackPlugin = require('sw-precache-webpack-plugin')
 
 function resolve (dir) {
   return path.join(__dirname, '..', dir)
@@ -23,7 +24,6 @@ module.exports = {
     alias: {
       'vue$': 'vue/dist/vue.esm.js',
       '@': resolve('src'),
-      
     }
   },
   module: {
@@ -72,5 +72,14 @@ module.exports = {
         }
       }
     ]
-  }
+  },
+  plugins:  [
+    new SWPrecacheWebpackPlugin({
+      cacheId: 'pulse-sms',
+      filename: 'service-worker.js',
+      staticFileGlobs: ['dist/**/*.{js,html,css}'],
+      minify: true,
+      stripPrefix: 'dist/'
+    })
+  ]
 }

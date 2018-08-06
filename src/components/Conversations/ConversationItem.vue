@@ -26,7 +26,7 @@ export default {
     data () {
         return {
             conversation_id: this.conversationData.device_id,
-            title: this.conversationData.title,
+            title: this.conversationData.titleNoEmoji,
             snippet: this.conversationData.snippet,
             read: this.conversationData.read,
             timestamp: this.conversationData.timestamp,
@@ -102,7 +102,12 @@ export default {
             }
 
             try {
-                return this.title.split('')[0].toUpperCase()
+                let letter = this.title.split('')[0].toUpperCase();
+                if (!letter.match(/[A-Z]/i)) {
+                    return "";
+                } else {
+                    return letter;
+                }
             } catch (e) { // Edge case for message with no title ??
                 return ""
             }
@@ -125,6 +130,29 @@ export default {
 
         &.small.mdl-card {
             background: $bg-dark;
+        }
+
+        .conversation-text {
+            .conversation-title {
+                color: white;
+            }
+
+            .conversation-snippet {
+                color: rgba(255,255,255,.77);
+            }
+        }
+    }
+
+    body.black .conversation-card {
+        background: $bg-black;
+
+        &.mdl-card {
+            background: $bg-black;
+        }
+
+
+        &.small.mdl-card {
+            background: $bg-black;
         }
 
         .conversation-text {
